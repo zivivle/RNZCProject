@@ -27,7 +27,7 @@ function HomeScreen({navigation}: HomeScreenProps) {
   };
   return (
     <Pressable onPress={onPress}>
-      <Text>HomeScreen</Text>
+      <Text>HomeScreen123123</Text>
     </Pressable>
   );
 }
