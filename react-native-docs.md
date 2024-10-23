@@ -19,23 +19,33 @@
 - Screen options.headerRight로 우측 버튼(useLayoutEffect)
 
 기존 컴포넌트 덮어씌우고 싶다면 요소들 하위에 위치하면 된다
-<View>
+
 // 위에 작성된 position: 'absolute'인 요소는
 // 메인 컨텐츠에 가려져서 보이지 않는다.
+
+```js
 <View style={{position: 'absolute'}}>
-<Text>Hello</Text>
+  <Text>Hello</Text>
 </View>
-<View>
-...메인 컨텐츠 코드
+```
+
+```js
 </View>
-// 아래에 작성된 position: 'absolute'인 요소는
-// 메인 컨텐츠를 덮어써서 위에 위치해 보인다.
-<View style={{position: 'absolute'}}>
-<Text>Hello</Text>
+  // 아래에 작성된 position: 'absolute'인 요소는
+  // 메인 컨텐츠를 덮어써서 위에 위치해 보인다.
+  <View style={{position: 'absolute'}}>
+    <Text>Hello</Text>
+  </View>
 </View>
-</View>
-억지로 zIndex를 줘서 덮어씌우는 것보다 좋다
+```
+
+- 억지로 zIndex를 줘서 덮어씌우는 것보다 좋다
+
+```
 ...StyleSheet.absoulteFillObject
-: 위 속성을 style로 적용하면 obsoulte 상태로 부모 영역만큼 가득차게 된다.
--> top: 0, right: 0, bottom: 0, left: 0 스타일을 준 것과 같다.
-Tab, Stack 요소들은 미리 flex: 1이 적용되어 있다.
+```
+
+: 위 속성을 style로 적용하면 obsoulte 상태로 부모 영역만큼 가득차게 된다.<br/>
+-> `top: 0, right: 0, bottom: 0, left: 0` 스타일을 준 것과 같다.
+
+- Tab, Stack 요소들은 미리 flex: 1이 적용되어 있다.
