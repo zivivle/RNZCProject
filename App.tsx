@@ -20,7 +20,7 @@ const Tab = createBottomTabNavigator<LoggedInStackParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function App(): React.JSX.Element {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   return (
     <NavigationContainer>
       {isLoggedIn ? (
