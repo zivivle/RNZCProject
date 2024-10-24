@@ -1,57 +1,60 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {NavigationContainer} from '@react-navigation/native';
-import {
-  createNativeStackNavigator,
-  NativeStackScreenProps,
-} from '@react-navigation/native-stack';
-import React from 'react';
-import {Pressable, Text} from 'react-native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import React, {useState} from 'react';
+import {Delivery, Orders, Settings, SignIn, SignUp} from './src/pages';
 
-type RootStackParamList = {
-  Home: undefined;
-  Details: undefined;
+type LoggedInStackParamList = {
+  Orders: undefined;
+  Settings: undefined;
+  Delivery: undefined;
+  Complete: {orderId: string};
 };
 
-type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
-type DetailScreenProps = NativeStackScreenProps<RootStackParamList, 'Details'>;
+type RootStackParamList = {
+  SignIn: undefined;
+  SignUp: undefined;
+};
 
-function HomeScreen({navigation}: HomeScreenProps) {
-  const onPress = () => {
-    navigation.navigate('Details');
-  };
-  return (
-    <Pressable onPress={onPress}>
-      <Text>HomeScreen</Text>
-    </Pressable>
-  );
-}
-
-function DetailScreen({navigation}: DetailScreenProps) {
-  const onPress = () => {
-    navigation.navigate('Home');
-  };
-  return (
-    <Pressable onPress={onPress}>
-      <Text>DetailScreen</Text>
-    </Pressable>
-  );
-}
-
+const Tab = createBottomTabNavigator<LoggedInStackParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function App(): React.JSX.Element {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Details" component={DetailScreen} />
-      </Stack.Navigator>
+      {isLoggedIn ? (
+        <Tab.Navigator>
+          <Tab.Screen
+            name="Orders"
+            component={Orders}
+            options={{title: '오더 목록'}}
+          />
+          <Tab.Screen
+            name="Delivery"
+            component={Delivery}
+            options={{headerShown: false}}
+          />
+          <Tab.Screen
+            name="Settings"
+            component={Settings}
+            options={{title: '내 정보'}}
+          />
+        </Tab.Navigator>
+      ) : (
+        <Stack.Navigator>
+          <Stack.Screen
+            name="SignIn"
+            component={SignIn}
+            options={{title: '로그인'}}
+          />
+          <Stack.Screen
+            name="SignUp"
+            component={SignUp}
+            options={{title: '회원가입'}}
+          />
+        </Stack.Navigator>
+      )}
     </NavigationContainer>
   );
 }

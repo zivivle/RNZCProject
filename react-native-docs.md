@@ -49,3 +49,102 @@
 -> `top: 0, right: 0, bottom: 0, left: 0` 스타일을 준 것과 같다.
 
 - Tab, Stack 요소들은 미리 flex: 1이 적용되어 있다.
+
+## 중첩 라우팅
+
+### @react-navigation/bottom-tabs 라이브러리 설치
+
+```
+npm install @react-navigation/bottom-tabs
+```
+
+- 스택으로 지정한 컴포넌트 안에서 다시 Stack.Navigator 설정해 중첩으로 설정할 수 있다.
+
+```js
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import React, {useState} from 'react';
+import {Delivery, Orders, Settings, SignIn, SignUp} from './src/pages';
+
+type LoggedInStackParamList = {
+  Orders: undefined;
+  Settings: undefined;
+  Delivery: undefined;
+  Complete: {orderId: string};
+};
+
+type RootStackParamList = {
+  SignIn: undefined;
+  SignUp: undefined;
+};
+
+const Tab = createBottomTabNavigator<LoggedInStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function App(): React.JSX.Element {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  return (
+    <NavigationContainer>
+      {isLoggedIn ? (
+        <Tab.Navigator>
+          <Tab.Screen
+            name="Orders"
+            component={Orders}
+            options={{title: '오더 목록'}}
+          />
+          <Tab.Screen
+            name="Delivery"
+            component={Delivery}
+            options={{headerShown: false}}
+          />
+          <Tab.Screen
+            name="Settings"
+            component={Settings}
+            options={{title: '내 정보'}}
+          />
+        </Tab.Navigator>
+      ) : (
+        <Stack.Navigator>
+          <Stack.Screen
+            name="SignIn"
+            component={SignIn}
+            options={{title: '로그인'}}
+          />
+          <Stack.Screen
+            name="SignUp"
+            component={SignUp}
+            options={{title: '회원가입'}}
+          />
+        </Stack.Navigator>
+      )}
+    </NavigationContainer>
+  );
+}
+
+export default App;
+```
+
+```js
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+
+import {Ing} from './Ing';
+import {Complete} from './Complete';
+
+const Stack = createNativeStackNavigator();
+
+export function Delivery() {
+  return (
+    <Stack.Navigator initialRouteName="Ing">
+      <Stack.Screen name="Ing" component={Ing} options={{headerShown: false}} />
+      <Stack.Screen
+        name="Complete"
+        component={Complete}
+        options={{headerShown: false}}
+      />
+    </Stack.Navigator>
+  );
+}
+```
+
+**[Tip]** 내 앱이 어떤 라우트로 구성이 될지 생각하면서 구조 잡기
