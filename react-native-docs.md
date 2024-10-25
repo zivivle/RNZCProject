@@ -455,7 +455,6 @@ function SignIn() {
         name: response.data.data.name,
         email: response.data.data.email,
         accessToken: response.data.data.accessToken,
-        refreshToken: response.data.data.refreshToken
       })
 
       // 영구적으로 보관
@@ -472,18 +471,26 @@ function SignIn() {
 }
 ```
 
+### AsyncStorage의, EncryptedStorage 차이
+
+**AsyncStorage**는 저장될때 암호화되지 않아 누구나 접근해서 확인할 수 있다는 문제점이 있다.
+그래서 민감한 정보를 저장하기에는 좋지 않다
 **[주의]** 기존의 React-Native의 AsyncStorage는 더이상 사용하면 안되고 라이브러리를 설치해서 사용해줘야 한다.
+
+**AsyncStorage 사용법**
 
 ```
 npm install @react-native-async-storage/async-storage
 ```
 
-### AsyncStorage의, EncryptedStorage 차이
+```js
+// Promise이기 때문에 await을 꼭 붙여줘야한다.
+await AsyncStorage.setItem('키', '값');
+await AsyncStorage.removeItem('키', '값');
+const 값 = await AsyncStorage.getItem('키', '값');
+```
 
-**AsyncStorage**는 저장될때 암호화되지 않아 누구나 접근해서 확인할 수 있다는 문제점이 있다.
-그래서 민감한 정보를 저장하기에는 좋지 않다
-
-만약 보안에 민감한 데이터를 저장해야 한다면 EncryptedStorage를 사용하는 것이 좋다<br/>
+-> 만약 보안에 민감한 데이터를 저장해야 한다면 EncryptedStorage를 사용하는 것이 좋다<br/><br/>
 **EncryptedStorage 사용법**
 
 ```
@@ -491,7 +498,140 @@ npm i react-native-encrypted-storage
 ```
 
 ```js
+// Promise이기 때문에 await을 꼭 붙여줘야한다.
 await EncryptedStorage.setItem('키', '값');
 await EncryptedStorage.removeItem('키', '값');
 const 값 = await EncryptedStorage.getItem('키', '값');
+```
+
+## accessToken과 refreshToken
+
+**accessToken** <br/>
+: accessToken은 서버에 어떠한 요청을 보낼 때 요청 보낸 사람을 구별할 수 있도록 도와주는 장치 역할을 한다.
+그렇기 때문에 accessToken을 탈취당하면 요청을 보내는 사람인 척 하면서 해커가 여러 활동이 가능해진다.
+그래서 accessToken에 유효기간(10분, 5분, 1시간, ... 회사마다 다름)을 두고 유효기간이 지나면 토큰을 만료시키는 처리를 한다.
+
+**refreshToken** <br/>
+: accessToken의 유효기간이 만료될 때마다 사용자가 재로그인을 하게된다면 사용자 경험에 매우 안좋기 때문에 refreshToken을 사용하게 된다.
+refreshToken을 서버에 보내게되면 accessToken의 유효기간을 새로 연장하도록 한다.
+
+```js
+await EncryptedStorage.setItem('refreshToken', response.data.data.refreshToken);
+```
+
+-> 그렇기 때문에 refreshToken까지 유출되게 되면 답이 없는 상황이 발생한다. 그걸 방지하기 위해서 refreshToken은 EncryptedStorage와 같은 암호화되는 저장소에 저장하도록 한다!
+
+## 웹소켓 연결하기
+
+: 앱에서 자주 사용되는 실시간 통신 방법에는 **웹소캣을 사용**하거나 **푸시알림을 사용**하는 방법이 있다.
+<br/> 단, 웹 소켓을 사용하는 방법은 베터리 소모가 있을 수 있다.
+
+### 웹소캣을 사용 방법
+
+```
+npm i socket.io-client
+```
+
+이후 커스텀훅으로 useSocket를 만들어준다.
+
+```js
+// useSocket.ts
+
+import {useCallback} from 'react';
+import SocketIOClient, {Socket} from 'socket.io-client';
+import Config from 'react-native-config';
+import {useSelector} from 'react-redux';
+import {RootState} from '../store/reducer';
+
+let socket: Socket | undefined;
+const useSocket = (): [Socket | undefined, () => void] => {
+  const isLoggedIn = useSelector((state: RootState) => !!state.user.email);
+  const disconnect = useCallback(() => {
+    if (socket && !isLoggedIn) {
+      console.log(socket && !isLoggedIn, '웹소켓 연결을 해제합니다.');
+      socket.disconnect();
+      socket = undefined;
+    }
+  }, [isLoggedIn]);
+  if (!socket && isLoggedIn) {
+    console.log(!socket && isLoggedIn, '웹소켓 연결을 진행합니다.');
+    socket = SocketIOClient(`${Config.API_URL}`, {
+      transports: ['websocket'],
+    });
+  }
+  return [socket, disconnect];
+};
+
+export default useSocket;
+```
+
+## 실시간 데이터 받기, 로그아웃(Bearer 토큰)
+
+### 실시간 데이터 받기
+
+```js
+function AppInner() {
+  const isLoggedIn = useSelector((state: RootState) => !!state.user.email);
+  const [socket, disconnect] = useSocket();
+
+  // socket.io에서 데이터를 받으면 키=값 형태로 오게됨
+  //
+  useEffect(() => {
+    const helloCallback = (date: any) => {
+      console.log(data);
+    };
+    if (socket && isLoggedIn) {
+      console.log(socket);
+      // 서버에게 데이터를 보내는 게 socket.emit
+      socket.emit('login', 'hello');
+      // 서버에게 데이터를 받는 게 socket.on
+      socket.on('hello', helloCallback);
+    }
+    return () => {
+      if (socket) {
+        // 서버에게 데이터를 받는 걸 그만하기가 socket.off
+        socket.off('hello', helloCallback);
+      }
+    };
+  }, [isLoggedIn, socket]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      console.log('!isLoggedIn', !isLoggedIn);
+      disconnect();
+    }
+  }, [isLoggedIn, disconnect]);
+}
+```
+
+### 로그아웃 하기
+
+```js
+function Settings() {
+  const accessToken = useUserInfoStore((state) => state.userInfo.accessToken);
+  const setUserInfo = useUserInfoStore((state) => state.setUserInfo);
+  const onLogout = useCallback(async() => {
+    try {
+      await axios.post(
+        `${Config.API_URL}/logout`,
+        {},
+        header: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      );
+      Alert.alert('알림', '로그아웃 되었습니다.')
+      // 전역 상태 초기화
+      setUserInfo({
+        name: '',
+        email: '',
+        accessToken: '',
+      })
+      // EncryptedStorage에서 refreshToken 초기화
+      await EncryptedStorage.removeItem('refreshToken');
+    } catch (error) {
+      const errorResponse = (error as AxiosError).response;
+      console.log(errorResponse);
+    }
+  }, [accessToken, setUserInfo])
+}
 ```
