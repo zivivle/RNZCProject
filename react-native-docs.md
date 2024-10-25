@@ -341,3 +341,157 @@ const DismissKeyboardView: React.FC = ({
   </TouchableWidthoutFeedback>
 )
 ```
+
+## axios로 서버에 요청 보내기
+
+서버 요청은 axios 사용 (요즘 ky나 got로 넘어가는 추세이나 react-native에서는 아직 적용하기 쉽지 않음)
+
+```js
+npm i axios
+```
+
+- async await 문법에는 try, catch, finally문을 사용해야한다. finally는 최근에 추가된 문법으로 try를 하던 catch를 하던 항상 실행되는 문이다.
+
+```js
+function SignUp({navigator}: SignUpScreenProps){
+  const [loading, setLoading] = useState(false)
+  ...
+
+  const onSubmit = useCallback(async() => {
+    ...
+    try {
+      // 요청을 보내기 전에 로딩상태 활성화
+      setLoading(true)
+      const response = await axios.post( `${__DEV__ ? 'localhost:3150' : '실서버 주소'}/user`, { email, name, password },
+        header: {
+          token: '고유한 값'
+        }
+      )
+      console.log(response);
+    } catch (error) {
+      console.log(error.response)
+    } finally {
+      setLoading(false)
+    }
+  }, [ email, name, password ])
+
+
+  return (
+    <View>
+      ...
+      <Button
+        ...
+        // 로딩중일때 버튼 클릭을 방지해주어야한다
+        disabled={loading || !canGoBack}
+      >
+        <Text>화원가입</Text>
+        {loading && <ActivityIndicator />}
+      </Button>
+    </View>
+  )
+}
+```
+
+## 서버 주소 react-native-config로 관리하기 -> 환경변수
+
+.env 파일을 만들어서
+
+```
+API_URL=http://localhost:3150
+```
+
+이렇게 만들어주면 `Config.API_URL` 이렇게 가져와서 사용할 수 있다.
+
+```js
+...
+import Config from 'react-native-config'
+
+function SignUp({navigator}: SignUpScreenProps){
+  const [loading, setLoading] = useState(false)
+  ...
+
+  const onSubmit = useCallback(async() => {
+    ...
+    try {
+      // 요청을 보내기 전에 로딩상태 활성화
+      setLoading(true)
+      const response = await axios.post( `${Config.API_URL}/user`, { email, name, password },
+        header: {
+          token: '고유한 값'
+        }
+      )
+      console.log(response);
+    } catch (error) {
+      console.log(error.response)
+    } finally {
+      setLoading(false)
+    }
+  }, [ email, name, password ])
+}
+```
+
+- 그리고 env 파일 수정이나 새로운 라이브러리 설치하면 항상 새로 시작 해줘야한다.
+
+## Redux, Config, EncryptedStorage, AsyncStorage의 차이 알기
+
+```js
+
+function SignIn() {
+  ...
+
+  const onSubmit = useCallback(async() => {
+    ...
+    try {
+      setLoading(true)
+      const response = await axios.post(`${Config.API_URL}/login`, {
+        email,
+        password,
+      })
+      console.log(response.data)
+      Alert.alert('알림', '로그인 되었습니다.');
+
+      // 전역상태 저장
+      setUserInfo({
+        name: response.data.data.name,
+        email: response.data.data.email,
+        accessToken: response.data.data.accessToken,
+        refreshToken: response.data.data.refreshToken
+      })
+
+      // 영구적으로 보관
+      await EncryptedStorage.setItem(
+        'refreshToken',
+        response.data.data.refreshToken
+      )
+    } catch {
+
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+}
+```
+
+**[주의]** 기존의 React-Native의 AsyncStorage는 더이상 사용하면 안되고 라이브러리를 설치해서 사용해줘야 한다.
+
+```
+npm install @react-native-async-storage/async-storage
+```
+
+### AsyncStorage의, EncryptedStorage 차이
+
+**AsyncStorage**는 저장될때 암호화되지 않아 누구나 접근해서 확인할 수 있다는 문제점이 있다.
+그래서 민감한 정보를 저장하기에는 좋지 않다
+
+만약 보안에 민감한 데이터를 저장해야 한다면 EncryptedStorage를 사용하는 것이 좋다<br/>
+**EncryptedStorage 사용법**
+
+```
+npm i react-native-encrypted-storage
+```
+
+```js
+await EncryptedStorage.setItem('키', '값');
+await EncryptedStorage.removeItem('키', '값');
+const 값 = await EncryptedStorage.getItem('키', '값');
+```
