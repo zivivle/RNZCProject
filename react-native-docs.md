@@ -635,3 +635,129 @@ function Settings() {
   }, [accessToken, setUserInfo])
 }
 ```
+
+## 앱을 껐다 켜도 로그인 유지하기
+
+- refreshToken의 만료기간이 남아있는 사람인지 확인한 후에 아니라면 다시 로그인 시키고 맞다면 로그인 상태 유지되도록하기
+  ex) refreshToken의 만료기간이 한달인 경우 -> 한달이 지나서 로그인하면 다시 로그인하도록 아니라면 로그인 상태 유지
+
+```js
+useEffect(() => {
+    const getTokenAndRefresh = async () => {
+      try {
+        const token = await EncryptedStorage.getItem('refreshToken');
+        if (!token) {
+          return;
+        }
+        const response = await axios.post(
+          `${Config.API_URL}/refreshToken`,
+          {},
+          {
+            headers: {
+              authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        setUserInfo({
+          name: response.data.data.name,
+          email: response.data.data.email,
+          accessToken: response.data.data.accessToken,
+        })
+      } catch (error) {
+        console.error(error);
+        if ((error as AxiosError).response?.data.code === 'expired') {
+          Alert.alert('알림', '다시 로그인 해주세요.');
+        }
+      } finally {
+        TODO: 스플래쉬스크린 넣어주기
+      }
+    };
+    // useEffect는 async함수가 안되기 때문에 어쩔 수 없이 다시 실행해줘야함
+    getTokenAndRefresh();
+  }, [dispatch]);
+```
+
+## 주문 목록 화면 만들기 (FlatList)
+
+```js
+import React, {useCallback} from 'react';
+import {FlatList, View} from 'react-native';
+import {Order} from '../slices/order';
+import {useSelector} from 'react-redux';
+import {RootState} from '../store/reducer';
+import EachOrder from '../components/EachOrder';
+
+function Orders() {
+  const orders = useSelector((state: RootState) => state.order.orders);
+
+  // 반복 대상이 되는 부분은 항상 컴포넌트를 분리해라
+  // ex) EachOrder
+  const renderItem = useCallback(({item}: {item: Order}) => {
+    return <EachOrder item={item} />;
+  }, []);
+
+  return (
+    <View>
+      <FlatList
+        data={orders}
+        keyExtractor={item => item.orderId}
+        renderItem={renderItem}
+      />
+    </View>
+  );
+}
+
+export default Orders;
+```
+
+<br/>
+
+## navigation
+
+Screen과 연결된 컴포넌트에만 인자로 navigation을 받아와서 사용해야 하고 <br/>
+연결된 컴포넌트의 자식 컴포넌트인 경우 navigation을 props로 내려주거나 (비추) <br/>
+`const navigation = useNavigation();` 해당 훅을 사용해서 사용함 (추천)
+<br/>
+<br/>
+
+## 토큰 재발급하기(axios Interceptor)
+
+axios 사용하는 작업중 너무 코드가 중복될 것 같다면 **axios Interceptor** 기능을 사용하는 게 좋다
+
+```js
+useEffect(() => {
+  axios.interceptors.response.use(
+    // 1. 첫번째 함수가 성공했을 때 처리하는 함수
+    response => {
+      return response;
+    },
+    // 2. 두번째 함수가 실패했을 때 처리하는 함수
+    async error => {
+      const {
+        // config가 원래 요청을 의미함
+        config,
+        response: {status},
+      } = error;
+      if (status === 419) {
+        if (error.response.data.code === 'expired') {
+          const originalRequest = config;
+          const refreshToken = await EncryptedStorage.getItem('refreshToken');
+          // token refresh 요청
+          const {data} = await axios.post(
+            `${Config.API_URL}/refreshToken`, // token refresh api
+            {},
+            {headers: {authorization: `Bearer ${refreshToken}`}},
+          );
+          // 새로운 토큰 저장
+          dispatch(userSlice.actions.setAccessToken(data.data.accessToken));
+          originalRequest.headers.authorization = `Bearer ${data.data.accessToken}`;
+          // 419로 요청 실패했던 요청 새로운 토큰으로 재요청
+          return axios(originalRequest);
+        }
+      }
+      // 그 외의 에러는 reject로 error를 넘겨줌
+      return Promise.reject(error);
+    },
+  );
+}, [dispatch]);
+```
