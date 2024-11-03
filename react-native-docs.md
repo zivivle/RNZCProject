@@ -810,3 +810,132 @@ npx pod-install
   </NaverMapView>
 </View>
 ```
+
+## 위치정보, 카메라 권한 얻기(react-native-permissions)
+
+: 위치 정보, 카메라, 갤러리 등 권한에 대한 요청이 필요함
+
+```
+npm i react-native-permissions
+```
+
+퍼미션 요청 플로우는 docs에서 확인할 수 있다.<br/>
+https://github.com/zoontek/react-native-permissions
+
+```js
+import {useEffect} from 'react';
+import {Alert, Linking, Platform} from 'react-native';
+import {check, PERMISSIONS, request, RESULTS} from 'react-native-permissions';
+
+function usePermissions() {
+  // 권한 관련
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      check(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION)
+        .then(result => {
+          console.log('check location', result);
+          if (result === RESULTS.BLOCKED || result === RESULTS.DENIED) {
+            Alert.alert(
+              '이 앱은 위치 권한 허용이 필요합니다.',
+              '앱 설정 화면을 열어서 항상 허용으로 바꿔주세요.',
+              [
+                {
+                  text: '네',
+                  onPress: () => Linking.openSettings(),
+                },
+                {
+                  text: '아니오',
+                  onPress: () => console.log('No Pressed'),
+                  style: 'cancel',
+                },
+              ],
+            );
+          }
+        })
+        .catch(console.error);
+    } else if (Platform.OS === 'ios') {
+      check(PERMISSIONS.IOS.LOCATION_ALWAYS)
+        .then(result => {
+          if (result === RESULTS.BLOCKED || result === RESULTS.DENIED) {
+            Alert.alert(
+              '이 앱은 백그라운드 위치 권한 허용이 필요합니다.',
+              '앱 설정 화면을 열어서 항상 허용으로 바꿔주세요.',
+              [
+                {
+                  text: '네',
+                  onPress: () => Linking.openSettings(),
+                },
+                {
+                  text: '아니오',
+                  onPress: () => console.log('No Pressed'),
+                  style: 'cancel',
+                },
+              ],
+            );
+          }
+        })
+        .catch(console.error);
+    }
+    if (Platform.OS === 'android') {
+      check(PERMISSIONS.ANDROID.CAMERA)
+        .then(result => {
+          if (result === RESULTS.DENIED || result === RESULTS.GRANTED) {
+            return request(PERMISSIONS.ANDROID.CAMERA);
+          } else {
+            console.log(result);
+            throw new Error('카메라 지원 안 함');
+          }
+        })
+        .catch(console.error);
+    } else {
+      check(PERMISSIONS.IOS.CAMERA)
+        .then(result => {
+          if (
+            result === RESULTS.DENIED ||
+            result === RESULTS.LIMITED ||
+            result === RESULTS.GRANTED
+          ) {
+            return request(PERMISSIONS.IOS.CAMERA);
+          } else {
+            console.log(result);
+            throw new Error('카메라 지원 안 함');
+          }
+        })
+        .catch(console.error);
+    }
+  }, []);
+}
+
+export default usePermissions;
+```
+
+만약 usePermissions를 각각 따로 usePermissions.android.ts, usePermissions.ios.ts 이렇게 분리해서 만들어준다면 import시 자동으로 안드로이드일 경우 .android.ts 파일을 ios일 경우 .ios.ts을 가지고 올 수 있다.
+
+-> 하지만 이 방법이 vscode나 인텔리제이에서 인식되지 않아서 문제가 될 수 있음
+
+## 내 위치 정보 가져오기
+
+```
+npm i @react-native-community/geolocation
+```
+
+## 이미지 선택해서 리사이징하기
+
+```shell
+npm i react-native-image-crop-picker
+npm i react-native-image-resizer
+```
+
+: 프론트단에서 이미지 리사이징을 해주는게 더 좋음
+
+## RN에서 폼데이터 사용해서 이미지 업로드하기
+
+```
+// { uri: '경로', filename: '파일이름', type: '확장자' } 이 형식으로 만들어주고
+// multipart/form-data 통해서 업로드해주면 된다.
+```
+
+[주의] axios 0.25.0 버전에서 이미지업로드 이슈가 있다고함 이 버전을 쓰면 안됨
+
+- 프리뷰 이미지에서 이미지 스타일의 resizeMode: 'contain'을 적용하면 이미지 크기에 딱 맞게 들어간다
+- resizeMode: 'cover'는 이미지가 공간에 꽉차게 적용할 수 있음
